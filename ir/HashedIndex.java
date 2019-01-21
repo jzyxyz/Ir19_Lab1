@@ -31,14 +31,16 @@ public class HashedIndex implements Index {
         // YOUR CODE HERE
         //
         PostingsEntry newEntry = new PostingsEntry(docID, offset);
-        PostingList newList = new PostingList();
+        PostingsList newList = new PostingsList();
         if (index.containsKey(token)) {
             //if this token is already in the table, 
             //get the oldlist and add the current entry 
-            PostingsList oldList = index.getPostings(token);
-            newList = oldList.addEntry(newEntry);
+            PostingsList oldList = new PostingsList();
+            oldList = getPostings(token);
+            oldList.addEntry(newEntry);
+            newList = oldList;
         } else {
-            //Otherwise add a entry to the empty PostingList
+            //Otherwise add a entry to the empty PostingsList
             newList.addEntry(newEntry);
         }
         index.put(token, newList);   

@@ -7,9 +7,14 @@
 
 package ir;
 
+import java.util.ArrayList;
 import java.util.StringTokenizer;
+import java.util.ListIterator;
+
+import com.sun.xml.internal.bind.v2.runtime.reflect.ListIterator;
 
 import ir.Query.QueryTerm;
+import sun.jvm.hotspot.runtime.posix.POSIXSignals;
 
 /**
  *  Searches an index for results of a query.
@@ -38,11 +43,32 @@ public class Searcher {
         //  REPLACE THE STATEMENT BELOW WITH YOUR CODE
         //
 
-        // for(QueryTerm t : query.queryterm) {
-        //     index.getPostings(t.term);
-        // }
-        String s = query.queryterm.get(0).term; 
-        System.out.println(s);    
-        return index.getPostings(s);
+        String s = "";
+        switch(QueryType) {
+            case INTERSECTION_QUERY:
+                PostingsList result = new PostingsList();
+                ArrayList<PostingsList> postingsListArr = new ArrayList<PostingsList>(); 
+                for (QueryTerm t : termArr){
+                    postingsListArr.add(index.getPostings(t.term));
+                }
+                ListIterator<PostingsEntry> itr = postingsListArr.get(0).gIterator();
+                while(itr.hasNext()){
+                    PostingsEntry curEntry = itr.next();
+                    for (int i=1; i<postingsListArr.size(); i++) {
+                        ListIterator<PostingsEntry> itr_i = postingsListArr.get(i).gIterator();
+                        PostingsEntry cmpEntry = itr_i.next();
+                        if(curEntry.docID == cmpEntry.docID){
+                            result.addEntry(new PostingsEntry(curEntry.docID, curEntry.offset));
+                        }
+                    }    
+                }
+                break;
+            default: 
+                for(QueryTerm t : query.queryterm) {
+                    s = s + " " + t.term;
+                    System.out.println("the term to be indexed is " + s);
+                    return index.getPostings(s);
+                }   
+        }    
     }
 }

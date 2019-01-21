@@ -8,8 +8,8 @@
 package ir;
 
 import java.util.ArrayList;
+import java.util.ListIterator;
 
-import com.sun.xml.internal.bind.v2.runtime.reflect.ListIterator;
 
 public class PostingsList {
     
@@ -34,8 +34,8 @@ public class PostingsList {
         list.add(entry);
     }
 
-    public ListIterator<PostingsEntry> getIterator() {
-        return list.listIterator(0);
+    public ListIterator<PostingsEntry> gIterator() {
+        return list.listIterator();
     }
 }
 
