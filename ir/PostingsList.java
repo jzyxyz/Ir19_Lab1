@@ -37,5 +37,59 @@ public class PostingsList {
     public ListIterator<PostingsEntry> gIterator() {
         return list.listIterator();
     }
+
+    public boolean hasEntryWith(int _docID){
+        boolean flag = false;
+        if(list.size() == 0 ) return flag;
+
+        ListIterator<PostingsEntry> it = gIterator();
+        while(it.hasNext()){
+            PostingsEntry e = it.next();
+            if( e.docID == _docID) {
+                flag = true;
+                break;
+            }
+        }
+        return flag;
+    }
+
+    public boolean contains(PostingsEntry e){
+        boolean flag = false;
+        if(list.size() == 0 ) return flag;
+        ListIterator<PostingsEntry> it = gIterator();
+        while(it.hasNext()){
+            if( e.docID == it.next().docID) {
+                flag = true;
+                break;
+            }
+        }
+        return flag;
+    }
+
+    public PostingsList intersectWith (PostingsList other){
+        PostingsList result = new PostingsList();
+        int i = 0;
+        int j = 0;
+        while( i < size() && j < other.size()){
+            PostingsEntry e_self = get(i);
+            PostingsEntry e_other = other.get(j);
+            if(e_self.docID == e_other.docID && !result.hasEntryWith(e_self.docID)) {
+                result.addEntry(e_self);
+                i++;
+                j++;
+            } else if (e_self.docID < e_other.docID){
+                i++;
+            } else j++;
+        }
+        return result;
+    }
+
+    public void format(){
+        System.out.println("Posting list size: " + size());    
+        // ListIterator<PostingsEntry> it = gIterator();
+        // while(it.hasNext()){
+        //     it.next().format();
+        // }
+    }
 }
 

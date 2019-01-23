@@ -32,10 +32,15 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
        return Double.compare( other.score, score );
     }
 
-    PostingsEntry(int _docID, int _offset){
+    public PostingsEntry(int _docID, int _offset){
         docID = _docID;
         offset = _offset;
     }
+
+    public void format() {
+        System.out.println("Entry at "+ docID + "with offset " + offset);    
+    }
+    
     //
     // YOUR CODE HERE
     //

@@ -11,10 +11,9 @@ import java.util.ArrayList;
 import java.util.StringTokenizer;
 import java.util.ListIterator;
 
-import com.sun.xml.internal.bind.v2.runtime.reflect.ListIterator;
 
 import ir.Query.QueryTerm;
-import sun.jvm.hotspot.runtime.posix.POSIXSignals;
+
 
 /**
  *  Searches an index for results of a query.
@@ -42,33 +41,51 @@ public class Searcher {
         //
         //  REPLACE THE STATEMENT BELOW WITH YOUR CODE
         //
+        PostingsList result = new PostingsList();
+        int n_terms = query.size();
+        if(n_terms == 0) return new PostingsList();
+        System.out.println("number of terms: "+n_terms);
+        PostingsList l_0 = index.getPostings(query.getTermStringAt(0));
+        ListIterator<PostingsEntry> it_0 = l_0.gIterator();   
 
-        String s = "";
-        switch(QueryType) {
+        switch(queryType){
             case INTERSECTION_QUERY:
-                PostingsList result = new PostingsList();
-                ArrayList<PostingsList> postingsListArr = new ArrayList<PostingsList>(); 
-                for (QueryTerm t : termArr){
-                    postingsListArr.add(index.getPostings(t.term));
+                ArrayList<PostingsList> l_all = new ArrayList<PostingsList>();
+                for(int i=0; i<n_terms; i++){
+                    PostingsList l_i = index.getPostings(query.getTermStringAt(i));
+                    l_all.add(l_i);
                 }
-                ListIterator<PostingsEntry> itr = postingsListArr.get(0).gIterator();
-                while(itr.hasNext()){
-                    PostingsEntry curEntry = itr.next();
-                    for (int i=1; i<postingsListArr.size(); i++) {
-                        ListIterator<PostingsEntry> itr_i = postingsListArr.get(i).gIterator();
-                        PostingsEntry cmpEntry = itr_i.next();
-                        if(curEntry.docID == cmpEntry.docID){
-                            result.addEntry(new PostingsEntry(curEntry.docID, curEntry.offset));
-                        }
-                    }    
+                result = l_all.get(0);
+                l_all.remove(0);
+                for( PostingsList pl : l_all) {
+                    result = result.intersectWith(pl);
                 }
                 break;
-            default: 
-                for(QueryTerm t : query.queryterm) {
-                    s = s + " " + t.term;
-                    System.out.println("the term to be indexed is " + s);
-                    return index.getPostings(s);
-                }   
-        }    
+
+            case PHRASE_QUERY:
+                System.out.println("phrasing");
+                for (int i=1; i < n_terms; i++){
+                    PostingsList l_i = index.getPostings(query.getTermStringAt(i));
+                    ListIterator<PostingsEntry> it_i = l_i.gIterator();
+                    PostingsList l_tmp = new PostingsList();
+                    while( it_0.hasNext() && it_i.hasNext()){
+                        PostingsEntry en_0 = it_0.next();
+                        PostingsEntry en_i = it_i.next();
+                        if( en_0.docID == en_i.docID){
+                            if(en_0.offset + 1 == en_i.offset) l_tmp.addEntry(en_0);
+                            else  it_0.previous();
+                        } else if(en_0.docID > en_i.docID ) it_0.previous();
+                            else it_i.previous();
+                    }
+                    l_0 = l_tmp;
+                }
+                result = l_0;
+                break;
+            case RANKED_QUERY:
+                System.out.println("ranking");
+                break;
+                    
+        }
+        return result;
     }
 }

@@ -102,7 +102,12 @@ public class Query {
         return queryCopy;
     }
     
-    
+    public String getTermStringAt( int pos){
+        return queryterm.get(pos).term;
+    }
+    public double getTermWeightAt( int pos){
+        return queryterm.get(pos).weight;
+    }
     /**
      *  Expands the Query using Relevance Feedback
      *
