@@ -108,12 +108,5 @@ public class PostingsList {
         return result;
     }
     
-    public void format(){
-        System.out.println("Posting list size: " + size());    
-        // ListIterator<PostingsEntry> it = gIterator();
-        // while(it.hasNext()){
-        //     it.next().format();
-        // }
-    }
 }
 

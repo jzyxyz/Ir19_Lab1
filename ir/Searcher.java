@@ -55,9 +55,11 @@ public class Searcher {
 
         result = pl_all.get(0);
         pl_all.remove(0);
+    
 
         switch(queryType){
             case INTERSECTION_QUERY:
+                if(n_terms == 1) result = result.intersectWith(result);
 
                 for( PostingsList pl : pl_all) {
                     result = result.intersectWith(pl);
@@ -70,13 +72,14 @@ public class Searcher {
                 for( PostingsList pl : pl_all) {
                     result = result.phraseWith(pl);
                 }
-
+                
                 break;
             case RANKED_QUERY:
                 System.out.println("ranking");
                 break;
                     
         }
+        Index.showDocInfo(result);
         return result;
     }
 }

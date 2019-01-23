@@ -50,7 +50,6 @@ public class HashedIndex implements Index {
         else return index.get(token);
     }
 
-
     /**
      *  No need for cleanup in a HashedIndex.
      */

@@ -9,6 +9,8 @@ package ir;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.ListIterator;
+
 
 /**
  *  Defines some common data structures and methods that all types of
@@ -31,5 +33,13 @@ public interface Index {
     /** This method is called on exit. */
     public void cleanup();
 
+    public static void showDocInfo(PostingsList pl) {
+        ListIterator<PostingsEntry> it = pl.gIterator();
+        System.out.println("*****************INFO*********************");    
+        while(it.hasNext()){
+            PostingsEntry e = it.next();
+            System.out.println(docNames.get(e.docID));
+        }
+    }
 }
 
