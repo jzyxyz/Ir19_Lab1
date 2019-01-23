@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.ListIterator;
 
 
+
 public class PostingsList {
     
     /** The postings list */
@@ -77,13 +78,36 @@ public class PostingsList {
                 result.addEntry(e_self);
                 i++;
                 j++;
-            } else if (e_self.docID < e_other.docID){
-                i++;
-            } else j++;
+            } else if (e_self.docID < e_other.docID) i++;
+                    else j++;
         }
         return result;
     }
 
+    public PostingsList phraseWith(PostingsList other){
+
+        PostingsList result = new PostingsList();
+        int i = 0;
+        int j = 0;
+        while( i < size() && j < other.size()){
+            PostingsEntry e_self = get(i);
+            PostingsEntry e_other = other.get(j);
+            if(e_self.docID == e_other.docID && !result.hasEntryWith(e_self.docID)) {
+                int diff = e_other.offset - e_self.offset - 1;
+                if( diff == 0) {
+                    result.addEntry(e_other);
+                    i++;
+                    j++;
+                    // making up phrase
+                } else if( diff > 0 ) i++;
+                        else j++;
+            } else if (e_self.docID < e_other.docID) i++;
+                    else j++;
+        }
+
+        return result;
+    }
+    
     public void format(){
         System.out.println("Posting list size: " + size());    
         // ListIterator<PostingsEntry> it = gIterator();
