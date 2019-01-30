@@ -108,5 +108,13 @@ public class PostingsList {
         return result;
     }
     
+    public String format() {
+        String result = "";
+        if(size() == 0) return null;
+        for( int i=0; i<size(); i++){
+            result = result + list.get(i).format() + ";";
+        }
+        return result;
+    }
 }
 

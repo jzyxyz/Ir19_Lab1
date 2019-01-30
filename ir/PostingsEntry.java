@@ -37,8 +37,10 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         offset = _offset;
     }
 
-    public void format() {
-        System.out.println("Entry at "+ docID + "with offset " + offset);    
+    public String format() {
+        String result;
+        result = docID + ":" + offset ;
+        return result;  
     }
     
     //

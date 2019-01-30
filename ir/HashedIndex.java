@@ -27,9 +27,7 @@ public class HashedIndex implements Index {
      *  Inserts this token in the hashtable.
      */
     public void insert( String token, int docID, int offset ) {
-        //
-        // YOUR CODE HERE
-        //
+
         PostingsEntry newEntry = new PostingsEntry(docID, offset);
         if(!index.containsKey(token)){
             index.put(token, new PostingsList());
