@@ -43,7 +43,7 @@ public class PersistentHashedIndex implements Index {
     /** The dictionary hash table on disk can fit this many entries. */
     public static final long TABLESIZE = 611953L;
 
-    public static final int ENTRYSIZE = 40;
+    public static final int ENTRYSIZE = 20;
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
 
@@ -58,6 +58,16 @@ public class PersistentHashedIndex implements Index {
 
     // ===================================================================
 
+    public long extraHash(String str) {
+        long hash = 5381;
+        int M = 33;
+        for (int i = 0; i < str.length(); i++) {
+            hash = hash * M + str.charAt(i);
+            hash = hash < 0 ? -hash : hash;
+        }
+        return hash;
+    }
+
     /**
      * A helper class representing one entry in the dictionary hashtable.
      */
@@ -65,12 +75,12 @@ public class PersistentHashedIndex implements Index {
 
         long ptr;
         int increament;
-        String term;
+        long hash;
 
-        public Entry(long _ptr, int _increament, String _s) {
+        public Entry(long _ptr, int _inc, long _hash) {
             ptr = _ptr;
-            increament = _increament;
-            term = _s;
+            increament = _inc;
+            hash = _hash;
         }
 
         public byte[] format() {
@@ -78,13 +88,7 @@ public class PersistentHashedIndex implements Index {
             ByteBuffer buffer = ByteBuffer.allocate(ENTRYSIZE);
             buffer.putLong(ptr);
             buffer.putInt(increament);
-            if (term.getBytes().length > 24) {
-                buffer.putInt(24);
-                buffer.put(term.substring(term.length() - 7, term.length() - 2).getBytes());
-            } else {
-                buffer.putInt(term.getBytes().length);
-                buffer.put(term.getBytes());
-            }
+            buffer.putLong(hash);
             return buffer.array();
         }
 
@@ -108,6 +112,8 @@ public class PersistentHashedIndex implements Index {
             dictionaryFile.seek(pre);
             while (dictionaryFile.readInt() != 0) {
                 pre++;
+                if (pre == TABLESIZE)
+                    pre = 0;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -124,9 +130,6 @@ public class PersistentHashedIndex implements Index {
             dictionaryFile = new RandomAccessFile(INDEXDIR + "/" + DICTIONARY_FNAME, "rw");
             dictionaryFile.seek((TABLESIZE + 1) * ENTRYSIZE);// write an EOF tag
             dictionaryFile.writeInt(999);
-            dictionaryFile.seek(1000l);
-            System.out.println("------------------------");
-            System.out.println(dictionaryFile.readInt());
 
             dataFile = new RandomAccessFile(INDEXDIR + "/" + DATA_FNAME, "rw");
         } catch (IOException e) {
@@ -184,10 +187,11 @@ public class PersistentHashedIndex implements Index {
      * 
      * @param ptr The place in the dictionary file to store the entry
      */
-    void writeEntry(Entry entry, long ptr) {
+    void writeEntry(Entry entry, long _finalHash) {
 
+        long ptr = _finalHash * ENTRYSIZE;
         try {
-            dictionaryFile.seek(ptr * ENTRYSIZE);
+            dictionaryFile.seek(ptr);
             dictionaryFile.write(entry.format());
         } catch (IOException e) {
             e.printStackTrace();
@@ -198,44 +202,27 @@ public class PersistentHashedIndex implements Index {
     /**
      * Reads an entry from the dictionary file.
      *
-     * @param ptr The place in the dictionary file where to start reading.
+     * @param _finalHash The place in the dictionary file where to start reading.
      */
-    Entry readEntry(long ptr) {
+    Entry readEntry(long _finalHash) {
 
-        long dataptr;
-        int dataInc;
-        int termLen = 0;
-        String term;
-        byte[] dictItem = new byte[ENTRYSIZE];
+        long dataptr = 0;
+        int dataInc = 0;
+        long hash = 0;
+        long ptr = _finalHash * ENTRYSIZE;
         try {
-            dictionaryFile.seek(ptr * ENTRYSIZE);
-            dictionaryFile.readFully(dictItem);
+            dictionaryFile.seek(ptr);
+            dataptr = dictionaryFile.readLong();
+            dictionaryFile.seek(ptr + 8);
+            dataInc = dictionaryFile.readInt();
+            dictionaryFile.seek(ptr + 12);
+            hash = dictionaryFile.readLong();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-        ByteBuffer buf_8 = ByteBuffer.allocate(8);
-        ByteBuffer buf_4 = ByteBuffer.allocate(4);
-        ByteBuffer buf_4alt = ByteBuffer.allocate(4);
-        System.out.println(1);
-        buf_8.put(Arrays.copyOfRange(dictItem, 0, 8));
-        buf_8.flip();
-        dataptr = buf_8.getLong();
-        System.out.println(2);
-        buf_4.put(Arrays.copyOfRange(dictItem, 8, 12));
-        buf_4.flip();
-        dataInc = buf_4.getInt();
-        System.out.println(3);
-        buf_4alt.put(Arrays.copyOfRange(dictItem, 12, 16));
-        buf_4alt.flip();
-        termLen = buf_4alt.getInt();
-        System.out.println(4);
-        ByteBuffer buf_s = ByteBuffer.allocate(termLen);
-        buf_s.put(Arrays.copyOfRange(dictItem, 16, 16 + termLen));
-        buf_s.flip();
-        term = new String(buf_s.array());
-        System.out.println("dataptr " + dataptr + " incre " + dataInc + " term " + term);
-        Entry result = new Entry(dataptr, dataInc, term);
+        System.out.println("dataptr " + dataptr + " incre " + dataInc + " hash " + hash);
+        Entry result = new Entry(dataptr, dataInc, hash);
         return result;
     }
 
@@ -289,7 +276,7 @@ public class PersistentHashedIndex implements Index {
             index.forEach((term, pl) -> {
                 int inc = writeData(pl.format(), free);
 
-                Entry newEntry = new Entry(free, inc, term);
+                Entry newEntry = new Entry(free, inc, extraHash(term));
                 free += inc;
 
                 writeEntry(newEntry, finalHash(term));
@@ -310,20 +297,28 @@ public class PersistentHashedIndex implements Index {
     public PostingsList getPostings(String token) {
 
         PostingsList result = new PostingsList();
-        long hash = preHash(token);
+        long pre = preHash(token);
+        long extra = extraHash(token);
         int offset = 0;
-        Entry dictEntry = readEntry(hash);
+        Entry dictEntry = readEntry(pre);
         if (dictEntry.increament == 0)
             return new PostingsList();
-        while (!token.equals(dictEntry.term)) {
-            dictEntry = readEntry(hash + ++offset);
+
+        while (dictEntry.hash != extra) {
+            if (offset > 101) {
+                System.out.println("have not found a match after trying 100 new entries");
+                return new PostingsList();
+            }
+            dictEntry = readEntry(pre + ++offset);
         }
         String dataStr = readData(dictEntry.ptr, dictEntry.increament);
         String[] dataStrArr = dataStr.split(";");
         for (String s : dataStrArr) {
-            String[] arr = s.split(":");
-            PostingsEntry newPE = new PostingsEntry(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]));
-            result.addEntry(newPE);
+            if (s.length() > 0) {
+                String[] arr = s.split(":");
+                PostingsEntry newPE = new PostingsEntry(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]));
+                result.addEntry(newPE);
+            }
         }
 
         return result;
