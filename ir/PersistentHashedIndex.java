@@ -26,7 +26,7 @@ import java.nio.charset.*;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "./index_small";
+    public static final String INDEXDIR = "./index";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
