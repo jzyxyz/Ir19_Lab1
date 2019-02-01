@@ -26,7 +26,7 @@ import java.nio.charset.*;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "./index";
+    public static final String INDEXDIR = "./index_small";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
@@ -40,6 +40,8 @@ public class PersistentHashedIndex implements Index {
     /** The doc info file name */
     public static final String DOCINFO_FNAME = "docInfo";
 
+    public static long NUM_COLLISIONS_ONCE = 0;
+    public static long NUM_COLLISIONS_MUL = 0;
     /** The dictionary hash table on disk can fit this many entries. */
     public static final long TABLESIZE = 611953L;
 
@@ -110,8 +112,11 @@ public class PersistentHashedIndex implements Index {
         long pre = preHash(str);
         try {
             dictionaryFile.seek(pre);
+            if (dictionaryFile.readInt() != 0)
+                NUM_COLLISIONS_ONCE++;
             while (dictionaryFile.readInt() != 0) {
-                pre++;
+                dictionaryFile.seek(pre++);
+                NUM_COLLISIONS_MUL++;
                 if (pre == TABLESIZE)
                     pre = 0;
             }
@@ -267,7 +272,7 @@ public class PersistentHashedIndex implements Index {
      * Write the index to files.
      */
     public void writeIndex() {
-        int collisions = 0;
+        // int collisions = 0;
         try {
             // Write the 'docNames' and 'docLengths' hash maps to a file
             writeDocInfo();
@@ -285,7 +290,8 @@ public class PersistentHashedIndex implements Index {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.err.println(collisions + " collisions.");
+        System.err.println("One time collisions is " + NUM_COLLISIONS_ONCE + " .");
+        System.err.println("Multi-time collisions is " + NUM_COLLISIONS_MUL + " .");
     }
 
     // ==================================================================
