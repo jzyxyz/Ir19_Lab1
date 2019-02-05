@@ -65,7 +65,6 @@ public class PersistentHashedIndex implements Index {
         int M = 33;
         for (int i = 0; i < str.length(); i++) {
             hash = hash * M + str.charAt(i);
-            hash = hash < 0 ? -hash : hash;
         }
         return hash;
     }
@@ -86,7 +85,7 @@ public class PersistentHashedIndex implements Index {
         }
 
         public byte[] format() {
-            // formate the Entry to BtyeArr 8B+4B+STRING(MAX_24B)
+            // formate the Entry to BtyeArr 8B+4B+8B
             ByteBuffer buffer = ByteBuffer.allocate(ENTRYSIZE);
             buffer.putLong(ptr);
             buffer.putInt(increament);
@@ -98,24 +97,87 @@ public class PersistentHashedIndex implements Index {
 
     // ==================================================================
     public long preHash(String str) {
-        long hash = 5381;
-        int M = 33;
-        for (int i = 0; i < str.length(); i++) {
-            hash = hash * M + str.charAt(i);
-            hash = hash < 0 ? -hash : hash;
-        }
+        long hash = murmur64(str.getBytes(), str.getBytes().length);
+        // long hash = mulHash64(str);
+        hash = hash > 0 ? hash : -hash;
         hash = hash % TABLESIZE;
         return hash;
     }
 
+    public long mulHash64(String str) {
+        long hash = 5381;
+        int M = 33;
+        for (int i = 0; i < str.length(); i++) {
+            hash = hash * M + str.charAt(i);
+        }
+        return hash;
+    }
+
+    // murmur hash code credit:
+    // https://github.com/tnm/murmurhash-java/blob/master/src/main/java/ie/ucd/murmur/MurmurHash.java
+    // this hash more than halfs the collision from 130K to 50K
+    public long murmur64(final byte[] data, int length) {
+        final int seed = 0xe17a1465;
+        final long m = 0xc6a4a7935bd1e995L;
+        final int r = 47;
+
+        long h = (seed & 0xffffffffl) ^ (length * m);
+
+        int length8 = length / 8;
+
+        for (int i = 0; i < length8; i++) {
+            final int i8 = i * 8;
+            long k = ((long) data[i8 + 0] & 0xff) + (((long) data[i8 + 1] & 0xff) << 8)
+                    + (((long) data[i8 + 2] & 0xff) << 16) + (((long) data[i8 + 3] & 0xff) << 24)
+                    + (((long) data[i8 + 4] & 0xff) << 32) + (((long) data[i8 + 5] & 0xff) << 40)
+                    + (((long) data[i8 + 6] & 0xff) << 48) + (((long) data[i8 + 7] & 0xff) << 56);
+
+            k *= m;
+            k ^= k >>> r;
+            k *= m;
+
+            h ^= k;
+            h *= m;
+        }
+
+        switch (length % 8) {
+        case 7:
+            h ^= (long) (data[(length & ~7) + 6] & 0xff) << 48;
+        case 6:
+            h ^= (long) (data[(length & ~7) + 5] & 0xff) << 40;
+        case 5:
+            h ^= (long) (data[(length & ~7) + 4] & 0xff) << 32;
+        case 4:
+            h ^= (long) (data[(length & ~7) + 3] & 0xff) << 24;
+        case 3:
+            h ^= (long) (data[(length & ~7) + 2] & 0xff) << 16;
+        case 2:
+            h ^= (long) (data[(length & ~7) + 1] & 0xff) << 8;
+        case 1:
+            h ^= (long) (data[length & ~7] & 0xff);
+            h *= m;
+        }
+        ;
+
+        h ^= h >>> r;
+        h *= m;
+        h ^= h >>> r;
+
+        return h;
+    }
+
     public long finalHash(String str) {
         long pre = preHash(str);
+        long ptr = 0;
         try {
-            dictionaryFile.seek(pre);
-            if (dictionaryFile.readInt() != 0)
-                NUM_COLLISIONS_ONCE++;
+            ptr = pre * ENTRYSIZE;
+            dictionaryFile.seek(ptr + 8);
+            // if (dictionaryFile.readLong() != 0)
+            // NUM_COLLISIONS_ONCE++;
             while (dictionaryFile.readInt() != 0) {
-                dictionaryFile.seek(pre++);
+                pre++;
+                ptr = pre * ENTRYSIZE;
+                dictionaryFile.seek(ptr + 8);
                 NUM_COLLISIONS_MUL++;
                 if (pre == TABLESIZE)
                     pre = 0;
@@ -226,7 +288,8 @@ public class PersistentHashedIndex implements Index {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("dataptr " + dataptr + " incre " + dataInc + " hash " + hash);
+        // System.out.println("dataptr " + dataptr + " incre " + dataInc + " hash " +
+        // hash);
         Entry result = new Entry(dataptr, dataInc, hash);
         return result;
     }
@@ -279,6 +342,7 @@ public class PersistentHashedIndex implements Index {
 
             // Write the dictionary and the postings list
             index.forEach((term, pl) -> {
+
                 int inc = writeData(pl.format(), free);
 
                 Entry newEntry = new Entry(free, inc, extraHash(term));
@@ -308,17 +372,19 @@ public class PersistentHashedIndex implements Index {
         int offset = 0;
         Entry dictEntry = readEntry(pre);
         if (dictEntry.increament == 0)
-            return new PostingsList();
+            return result;
 
         while (dictEntry.hash != extra) {
-            if (offset > 101) {
+            if (offset > 100) {
                 System.out.println("have not found a match after trying 100 new entries");
                 return new PostingsList();
             }
-            dictEntry = readEntry(pre + ++offset);
+            offset++;
+            dictEntry = readEntry(pre + offset);
         }
         String dataStr = readData(dictEntry.ptr, dictEntry.increament);
-        String[] dataStrArr = dataStr.split(";");
+        // System.out.print("ooo:" + dataStr);
+        String[] dataStrArr = dataStr.split("\n");
         for (String s : dataStrArr) {
             if (s.length() > 0) {
                 String[] arr = s.split(":");
