@@ -117,6 +117,7 @@ public class PersistentHashedIndex implements Index {
     // https://github.com/tnm/murmurhash-java/blob/master/src/main/java/ie/ucd/murmur/MurmurHash.java
     // this hash more than halfs the collision from 130K to 50K
     public long murmur64(final byte[] data, int length) {
+
         final int seed = 0xe17a1465;
         final long m = 0xc6a4a7935bd1e995L;
         final int r = 47;

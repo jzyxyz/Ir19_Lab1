@@ -7,7 +7,9 @@
 
 package ir;
 
+import java.util.Set;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.ListIterator;
 
 public class PostingsList {
@@ -67,14 +69,16 @@ public class PostingsList {
     }
 
     public PostingsList intersectWith(PostingsList other) {
+        Set<Integer> resultSet = new HashSet<Integer>();
         PostingsList result = new PostingsList();
         int i = 0;
         int j = 0;
         while (i < size() && j < other.size()) {
             PostingsEntry e_self = get(i);
             PostingsEntry e_other = other.get(j);
-            if (e_self.docID == e_other.docID && !result.hasEntryWith(e_self.docID)) {
+            if (e_self.docID == e_other.docID && !resultSet.contains(e_self.docID)) {
                 result.addEntry(e_self);
+                resultSet.add(e_self.docID);
                 i++;
                 j++;
             } else if (e_self.docID < e_other.docID)
@@ -86,16 +90,17 @@ public class PostingsList {
     }
 
     public PostingsList phraseWith(PostingsList other) {
-
+        Set<Integer> resultSet = new HashSet<Integer>();
         PostingsList result = new PostingsList();
         int i = 0;
         int j = 0;
         while (i < size() && j < other.size()) {
             PostingsEntry e_self = get(i);
             PostingsEntry e_other = other.get(j);
-            if (e_self.docID == e_other.docID && !result.hasEntryWith(e_self.docID)) {
+            if (e_self.docID == e_other.docID && !resultSet.contains(e_self.docID)) {
                 int diff = e_other.offset - e_self.offset - 1;
                 if (diff == 0) {
+                    resultSet.add(e_self.docID);
                     result.addEntry(e_other);
                     i++;
                     j++;
