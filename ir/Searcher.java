@@ -56,14 +56,12 @@ public class Searcher {
         ArrayList<PostingsList> pl_all = new ArrayList<PostingsList>();
         for (int i = 0; i < n_terms; i++) {
             PostingsList pl_i = index.getPostings(query.getTermStringAt(i));
-            if (pl_i != null) {
-                pl_all.add(pl_i);
-                Set<Integer> pl_i_set = pl_i.getDocIdSet();
-                result_set.addAll(pl_i_set);
-                set_sizes.add(pl_i_set.size());
-            }
+            pl_all.add(pl_i);
+            Set<Integer> pl_i_set = pl_i.getDocIdSet();
+            result_set.addAll(pl_i_set);
+            set_sizes.add(pl_i_set.size());
         }
-        if (pl_all.size() == 0) // term not indexed
+        if (result_set.size() == 0) // term not indexed
             return result;
 
         switch (queryType) {
@@ -74,7 +72,8 @@ public class Searcher {
                 return result.intersectWith(result);
 
             for (PostingsList pl : pl_all) {
-                result = result.intersectWith(pl);
+                if (pl != null)
+                    result = result.intersectWith(pl);
             }
 
             break;
@@ -86,7 +85,8 @@ public class Searcher {
                 return result.intersectWith(result);
 
             for (PostingsList pl : pl_all) {
-                result = result.phraseWith(pl);
+                if (pl != null)
+                    result = result.phraseWith(pl);
             }
 
             break;
@@ -97,17 +97,22 @@ public class Searcher {
             Map<Integer, Double> scores = new HashMap<Integer, Double>();
             for (int id : result_set) {
                 int docLen = Index.docLengths.get(id);
-                // System.out.println(docLen);
                 scores.put(id, 0d);
                 for (int i = 0; i < n_terms; i++) {
-                    String term = query.getTermStringAt(i);
-                    PostingsList term_pl = pl_all.get(i);
-                    int tf = term_pl.numTermOccursIn(id);
-                    // int df = term_pl.getDocIdSet().size();
-                    int df = set_sizes.get(i);
-                    double idf = Math.log(N / df);
-                    double tf_idf = tf * idf;
-                    scores.put(id, tf_idf + scores.get(id));
+                    if (set_sizes.get(i) > 0) {
+                        String term = query.getTermStringAt(i);
+                        PostingsList pl_i = pl_all.get(i);
+                        int tf = pl_i.numTermOccursIn(id);
+                        int df = set_sizes.get(i);
+                        double idf = Math.log(N / df);
+                        // 9114 coop
+                        if (id == 9114 || id == 9641) {
+                            System.out.println("tf for" + id + ": " + term + "   " + tf);
+                            System.out.println("df for" + id + ": " + term + "   " + idf);
+                        }
+                        double tf_idf = tf * idf;
+                        scores.put(id, tf_idf + scores.get(id));
+                    }
                 }
                 scores.put(id, scores.get(id) / docLen);
                 result.addEntry(new PostingsEntry(id, scores.get(id)));
