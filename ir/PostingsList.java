@@ -22,6 +22,29 @@ public class PostingsList {
         return list.size();
     }
 
+    public ArrayList<PostingsEntry> getlist() {
+        return list;
+    }
+
+    public int numTermOccursIn(int _docID) {
+        int result = 0;
+        ListIterator<PostingsEntry> it = gIterator();
+        while (it.hasNext()) {
+            if (it.next().docID == _docID)
+                result++;
+        }
+        return result;
+    }
+
+    public Set<Integer> getDocIdSet() {
+        Set<Integer> resultSet = new HashSet<Integer>();
+        ListIterator<PostingsEntry> it = gIterator();
+        while (it.hasNext()) {
+            resultSet.add(it.next().docID);
+        }
+        return resultSet;
+    }
+
     /** Returns the ith posting. */
     public PostingsEntry get(int i) {
         return list.get(i);
@@ -125,4 +148,5 @@ public class PostingsList {
         }
         return result.toString();
     }
+
 }

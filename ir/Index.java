@@ -3,7 +3,7 @@
  *   Information Retrieval course at KTH.
  * 
  *   Johan Boye, 2017
- */  
+ */
 
 package ir;
 
@@ -11,35 +11,33 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-
 /**
- *  Defines some common data structures and methods that all types of
- *  index should implement.
+ * Defines some common data structures and methods that all types of index
+ * should implement.
  */
 public interface Index {
 
     /** Mapping from document identifiers to document names. */
-    public HashMap<Integer,String> docNames = new HashMap<Integer,String>();
-    
+    public HashMap<Integer, String> docNames = new HashMap<Integer, String>();
+
     /** Mapping from document identifier to document length. */
-    public HashMap<Integer,Integer> docLengths = new HashMap<Integer,Integer>();
+    public HashMap<Integer, Integer> docLengths = new HashMap<Integer, Integer>();
 
     /** Inserts a token into the index. */
-    public void insert( String token, int docID, int offset );
+    public void insert(String token, int docID, int offset);
 
     /** Returns the postings for a given term. */
-    public PostingsList getPostings( String token );
+    public PostingsList getPostings(String token);
 
     /** This method is called on exit. */
     public void cleanup();
 
     public static void showDocInfo(PostingsList pl) {
         ListIterator<PostingsEntry> it = pl.gIterator();
-        System.out.println("*****************INFO*********************");    
-        while(it.hasNext()){
+        System.out.println("*****************INFO*********************");
+        while (it.hasNext()) {
             PostingsEntry e = it.next();
             System.out.println(docNames.get(e.docID));
         }
     }
 }
-

@@ -35,6 +35,12 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         offset = _offset;
     }
 
+    public PostingsEntry(int _docID, double _score) {
+        docID = _docID;
+        offset = 0;
+        score = _score;
+    }
+
     public String format() {
         StringBuilder result = new StringBuilder("");
         result.append(docID);
