@@ -27,11 +27,19 @@ public class Searcher {
 
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
+    PageRank pageRank;
+    final double lamda = 0.92;
 
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
         this.index = index;
         this.kgIndex = kgIndex;
+    }
+
+    public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank) {
+        this.index = index;
+        this.kgIndex = kgIndex;
+        this.pageRank = pageRank;
     }
 
     /**
@@ -44,7 +52,6 @@ public class Searcher {
         // REPLACE THE STATEMENT BELOW WITH YOUR CODE
         //
         PostingsList result = new PostingsList();
-        // PostingsList ranked_result = new PostingsList();
         Set<Integer> result_set = new HashSet<Integer>();
         int n_terms = query.size();
 
@@ -93,32 +100,46 @@ public class Searcher {
         case RANKED_QUERY:
 
             result = new PostingsList();
-            int N = 17483;
-            Map<Integer, Double> scores = new HashMap<Integer, Double>();
-            for (int id : result_set) {
-                int docLen = Index.docLengths.get(id);
-                scores.put(id, 0d);
-                for (int i = 0; i < n_terms; i++) {
-                    if (set_sizes.get(i) > 0) {
-                        String term = query.getTermStringAt(i);
-                        PostingsList pl_i = pl_all.get(i);
-                        int tf = pl_i.numTermOccursIn(id);
-                        int df = set_sizes.get(i);
-                        double idf = Math.log(N / df);
-                        // 9114 coop
-                        if (id == 9114 || id == 9641) {
-                            System.out.println("tf for" + id + ": " + term + "   " + tf);
-                            System.out.println("df for" + id + ": " + term + "   " + idf);
-                        }
-                        double tf_idf = tf * idf;
-                        scores.put(id, tf_idf + scores.get(id));
-                    }
+
+            switch (rankingType) {
+            case PAGERANK:
+                for (int id : result_set) {
+                    double score = pageRank.getPRScore(id);
+                    result.addEntry(new PostingsEntry(id, score));
                 }
-                scores.put(id, scores.get(id) / docLen);
-                result.addEntry(new PostingsEntry(id, scores.get(id)));
+                break;
+            default:
+                int N = 17483;
+                Map<Integer, Double> scores = new HashMap<Integer, Double>();
+                for (int id : result_set) {
+                    int docLen = Index.docLengths.get(id);
+                    scores.put(id, 0d);
+                    for (int i = 0; i < n_terms; i++) {
+                        if (set_sizes.get(i) > 0) {
+                            String term = query.getTermStringAt(i);
+                            PostingsList pl_i = pl_all.get(i);
+                            int tf = pl_i.numTermOccursIn(id);
+                            int df = set_sizes.get(i);
+                            double idf = Math.log(N / df);
+                            // 9114 coop
+                            if (id == 9114 || id == 9641) {
+                                System.out.println("tf for" + id + ": " + term + "   " + tf);
+                                System.out.println("df for" + id + ": " + term + "   " + idf);
+                            }
+                            double tf_idf = tf * idf;
+                            scores.put(id, tf_idf + scores.get(id));
+                        }
+                    }
+                    scores.put(id, scores.get(id) / docLen);
+                    if (rankingType == RankingType.COMBINATION) {
+                        double newScore = (1 - lamda) * scores.get(id) + lamda * pageRank.getPRScore(id);
+                        scores.put(id, newScore);
+                    }
+                    result.addEntry(new PostingsEntry(id, scores.get(id)));
+                }
+                break;
             }
             Collections.sort(result.getlist(), (PostingsEntry e1, PostingsEntry e2) -> e1.compareTo(e2));
-            break;
 
         }
         // Index.showDocInfo(result);

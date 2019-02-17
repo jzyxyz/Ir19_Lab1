@@ -18,7 +18,7 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 
     public int docID;
     public int offset;
-    public double score = 0;
+    public double score = 0.0;
 
     /**
      * PostingsEntries are compared by their score (only relevant in ranked
