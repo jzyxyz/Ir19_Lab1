@@ -19,6 +19,7 @@ public class Engine {
     // Index index = new HashedIndex();
     Index index = new PersistentHashedIndex();
     PageRank pageRank = new PageRank();
+    HITSRanker hitsRanker = new HITSRanker();
     /** The indexer creating the search index. */
     Indexer indexer;
 
@@ -61,7 +62,7 @@ public class Engine {
         decodeArgs(args);
         indexer = new Indexer(index, kgIndex, patterns_file);
         // searcher = new Searcher(index, kgIndex);
-        searcher = new Searcher(index, kgIndex, pageRank);
+        searcher = new Searcher(index, kgIndex, pageRank, hitsRanker);
         gui = new SearchGUI(this);
         gui.init();
         /*

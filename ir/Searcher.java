@@ -28,6 +28,7 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
     PageRank pageRank;
+    HITSRanker hitsRanker;
     final double lamda = 0.92;
 
     /** Constructor */
@@ -36,10 +37,11 @@ public class Searcher {
         this.kgIndex = kgIndex;
     }
 
-    public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank) {
+    public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank, HITSRanker hitsRanker) {
         this.index = index;
         this.kgIndex = kgIndex;
         this.pageRank = pageRank;
+        this.hitsRanker = hitsRanker;
     }
 
     /**
@@ -102,6 +104,11 @@ public class Searcher {
             result = new PostingsList();
 
             switch (rankingType) {
+            case HITS:
+                System.out.println("invoke HITS ranker");
+                result = hitsRanker.rank(result_set);
+                result.intersectWith(result);
+                break;
             case PAGERANK:
                 for (int id : result_set) {
                     double score = pageRank.getPRScore(id);
@@ -131,6 +138,7 @@ public class Searcher {
                         }
                     }
                     scores.put(id, scores.get(id) / docLen);
+                    // If it's combination
                     if (rankingType == RankingType.COMBINATION) {
                         double newScore = (1 - lamda) * scores.get(id) + lamda * pageRank.getPRScore(id);
                         scores.put(id, newScore);
