@@ -107,7 +107,6 @@ public class Searcher {
             case HITS:
                 System.out.println("invoke HITS ranker");
                 result = hitsRanker.rank(result_set);
-                result.intersectWith(result);
                 break;
             case PAGERANK:
                 for (int id : result_set) {

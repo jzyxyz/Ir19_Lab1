@@ -27,7 +27,6 @@ public class HITSRanker {
      * EPSILON from one iteration to another.
      */
     final static double EPSILON = 0.001;
-    final static int TOPN = 40;
 
     /**
      * The inverted index
@@ -37,9 +36,9 @@ public class HITSRanker {
     /**
      * Mapping from the titles to internal document ids used in the links file
      */
-    HashMap<String, Integer> titleToId = new HashMap<String, Integer>();
 
     HashMap<Integer, Integer> linkIdToDocId = new HashMap<Integer, Integer>();
+    HashMap<Integer, Integer> docIdToLinkId = new HashMap<Integer, Integer>();
     /**
      * Link from this doc TO others
      */
@@ -117,7 +116,7 @@ public class HITSRanker {
         String titlesFilename = DIR + TITLEFILENAME;
         String convertFilename = DIR + CONVERTFILENAME;
         try {
-            System.err.print("Reading file... " + linksFilename);
+            System.err.println("Reading file... " + linksFilename);
             BufferedReader in = new BufferedReader(new FileReader(linksFilename));
             String line;
             while ((line = in.readLine()) != null) {
@@ -135,37 +134,20 @@ public class HITSRanker {
                     linkToIdFromOther.get(to).put(from, true);
                 }
             }
-            System.err.println("Reading file... " + titlesFilename);
-            in = new BufferedReader(new FileReader(titlesFilename));
-            while ((line = in.readLine()) != null) {
-                String[] arr = line.split(";");
-                titleToId.put(arr[1], Integer.valueOf(arr[0]));
-            }
             System.err.println("Reading file... " + convertFilename);
             in = new BufferedReader(new FileReader(convertFilename));
             while ((line = in.readLine()) != null) {
                 String[] arr = line.split(";");
                 linkIdToDocId.put(Integer.valueOf(arr[1]), Integer.valueOf(arr[0]));
+                docIdToLinkId.put(Integer.valueOf(arr[0]), Integer.valueOf(arr[1]));
             }
-            System.err.print("done. ");
+            System.err.println("done. ");
         } catch (FileNotFoundException e) {
             System.err.println("File " + linksFilename + " not found!");
         } catch (IOException e) {
             System.err.println("Error reading file " + linksFilename);
         }
-        // System.out.println(titleToId.get("Varsity_Theater.f"));
-        // HashMap<Integer, Boolean> test = linkFromIdToOther.get(5);
-        // for (Integer i : test.keySet()) {
-        // System.out.println(i + ":\t" + test.get(i));
 
-        // }
-        // HashMap<Integer, Boolean> test2 = linkToIdFromOther.get(18);
-        // System.out.println("*******" + test2.size());
-
-        // for (Integer i : test2.keySet()) {
-        // System.out.println(i + ":\t" + test2.get(i));
-
-        // }
     }
 
     /**
@@ -179,14 +161,13 @@ public class HITSRanker {
         authorities = new HashMap<Integer, Double>();
         hubs = new HashMap<Integer, Double>();
         for (Integer id : baseSet) {
-            authorities.put(id, 1d);
-            hubs.put(id, 1d);
-            _authorities.put(id, 0d);
-            _hubs.put(id, 0d);
+            authorities.put(id, 1.0);
+            hubs.put(id, 1.0);
+            _authorities.put(id, 0.0);
+            _hubs.put(id, 0.0);
         }
-        System.out.println("base set size" + baseSet.size());
-        // System.out.println("auth initiated to: " + authorities.size());
-        // System.out.println("hubs initiated to: " + hubs.size());
+        System.out.println("authorities size: " + authorities.size());
+
         int count = 0;
         while (count++ < MAX_NUMBER_OF_STEPS) {
             boolean authOK = hasConverged(authorities, _authorities);
@@ -200,8 +181,14 @@ public class HITSRanker {
                     HashMap<Integer, Boolean> hubMap = linkToIdFromOther.get(authId);
                     if (hubMap != null) {
                         for (Integer hubId : hubMap.keySet()) {
-                            if (hubs.get(hubId) != null)
+                            // if (hubs.get(hubId) != null)
+                            if (hubs.get(hubId) == null) {
+                                System.out.println(hubId);
+
+                            } else {
                                 newAuth += hubs.get(hubId);
+
+                            }
                         }
                     }
                     authorities.put(authId, newAuth);
@@ -268,50 +255,35 @@ public class HITSRanker {
         PostingsList result = new PostingsList();
         HashSet<Integer> baseSet = new HashSet<Integer>();
         for (Integer idxID : rootSet) {
-            String title = getFileName(Index.docNames.get(idxID));
-            int linkId = -1;
-            if (titleToId.get(title) != null)
-                linkId = titleToId.get(title);
+            int linkId = docIdToLinkId.get(idxID);
             if (linkFromIdToOther.get(linkId) != null)
                 baseSet.addAll(linkFromIdToOther.get(linkId).keySet());
             if (linkToIdFromOther.get(linkId) != null)
                 baseSet.addAll(linkToIdFromOther.get(linkId).keySet());
         }
+        System.out.println("base set size: " + baseSet.size());
         // initiate from the root set to the base set, then iterate
         iterate(baseSet);
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
+        System.out.println("sorted hubs/athor size: " + sortedHubs.size());
+
         if (sortedHubs != null) {
             int i = 0;
             for (Map.Entry<Integer, Double> e : sortedHubs.entrySet()) {
                 int linkId = e.getKey();
                 if (linkIdToDocId.get(linkId) == null) {
                     // System.out.println("no linkid to doc id has been found");
+                    i++;
                     continue;
                 }
-                i++;
                 int docId = linkIdToDocId.get(linkId);
-                double score = e.getValue();
+                double hubScore = e.getValue();
+                double score = e.getValue() + sortedAuthorities.get(linkId);
                 result.addEntry(new PostingsEntry(docId, score));
-                if (i >= TOPN)
-                    break;
             }
-        }
-        if (sortedAuthorities != null) {
-            int i = 0;
-            for (Map.Entry<Integer, Double> e : sortedAuthorities.entrySet()) {
-                int linkId = e.getKey();
-                if (linkIdToDocId.get(linkId) == null) {
-                    // System.out.println("no linkid to doc id has been found");
-                    continue;
-                }
-                i++;
-                int docId = linkIdToDocId.get(linkId);
-                double score = e.getValue();
-                result.addEntry(new PostingsEntry(docId, score));
-                if (i >= TOPN)
-                    break;
-            }
+            System.out.println("found " + i + " non-match ids");
+
         }
         return result;
     }
@@ -367,20 +339,5 @@ public class HITSRanker {
         } catch (IOException e) {
         }
     }
-
-    /**
-     * Rank all the documents in the links file. Produces two files: hubs_top_30.txt
-     * with documents containing top 30 hub scores authorities_top_30.txt with
-     * documents containing top 30 authority scores
-     */
-    // void rank() {
-    // iterate(titleToId.keySet().toArray(new String[0]));
-    // HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
-    // HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
-    // writeToFile(sortedHubs, "hubs_top_30.txt", 30);
-    // writeToFile(sortedAuthorities, "authorities_top_30.txt", 30);
-    // }
-
-    /* --------------------------------------------- */
 
 }
