@@ -166,8 +166,6 @@ public class HITSRanker {
             _authorities.put(id, 0.0);
             _hubs.put(id, 0.0);
         }
-        System.out.println("authorities size: " + authorities.size());
-
         int count = 0;
         while (count++ < MAX_NUMBER_OF_STEPS) {
             boolean authOK = hasConverged(authorities, _authorities);
@@ -181,14 +179,8 @@ public class HITSRanker {
                     HashMap<Integer, Boolean> hubMap = linkToIdFromOther.get(authId);
                     if (hubMap != null) {
                         for (Integer hubId : hubMap.keySet()) {
-                            // if (hubs.get(hubId) != null)
-                            if (hubs.get(hubId) == null) {
-                                System.out.println(hubId);
-
-                            } else {
+                            if (hubs.get(hubId) != null)
                                 newAuth += hubs.get(hubId);
-
-                            }
                         }
                     }
                     authorities.put(authId, newAuth);
@@ -251,11 +243,11 @@ public class HITSRanker {
      */
     PostingsList rank(Set<Integer> rootSet) {
         System.out.println("root set size: " + rootSet.size());
-
         PostingsList result = new PostingsList();
         HashSet<Integer> baseSet = new HashSet<Integer>();
         for (Integer idxID : rootSet) {
             int linkId = docIdToLinkId.get(idxID);
+            baseSet.add(linkId);
             if (linkFromIdToOther.get(linkId) != null)
                 baseSet.addAll(linkFromIdToOther.get(linkId).keySet());
             if (linkToIdFromOther.get(linkId) != null)
@@ -266,8 +258,6 @@ public class HITSRanker {
         iterate(baseSet);
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
-        System.out.println("sorted hubs/athor size: " + sortedHubs.size());
-
         if (sortedHubs != null) {
             int i = 0;
             for (Map.Entry<Integer, Double> e : sortedHubs.entrySet()) {
@@ -279,7 +269,15 @@ public class HITSRanker {
                 }
                 int docId = linkIdToDocId.get(linkId);
                 double hubScore = e.getValue();
-                double score = e.getValue() + sortedAuthorities.get(linkId);
+                double authScore = sortedAuthorities.get(linkId);
+                double score = 0d;
+                if (hubScore > 0.1)
+                    hubScore *= 2.0;
+                if (authScore > 0.1)
+                    authScore *= 2.0;
+                score = hubScore + authScore;
+                if (rootSet.contains(docId))
+                    score += 0.5;
                 result.addEntry(new PostingsEntry(docId, score));
             }
             System.out.println("found " + i + " non-match ids");
