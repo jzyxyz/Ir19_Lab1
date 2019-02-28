@@ -1,0 +1,14 @@
+davisWiki/
+classes/
+*.tar.gz
+*.gif
+*.f
+assignment1.pdf
+diff
+nohup.out
+pagerank/tmp/
+ir/.vscode/
+ZhongyuanJin.txt
+token_test_tokenized_ok.txt
+token_test.txt
+tokenized_result.txt
