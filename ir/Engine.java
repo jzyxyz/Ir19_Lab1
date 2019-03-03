@@ -16,15 +16,16 @@ import java.io.File;
 public class Engine {
 
     /** The inverted index. */
-    // Index index = new HashedIndex();
-    Index index = new PersistentHashedIndex();
+    Index index = new HashedIndex();
+    // Index index = new PersistentHashedIndex();
     PageRank pageRank = new PageRank();
     HITSRanker hitsRanker = new HITSRanker();
+    TFIDF tfidf = new TFIDF(index);
     /** The indexer creating the search index. */
     Indexer indexer;
 
     /** K-gram index */
-    KGramIndex kgIndex;
+    KGramIndex kgIndex = new KGramIndex(2);
 
     /** The searcher used to search the index. */
     Searcher searcher;

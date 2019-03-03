@@ -8,6 +8,7 @@
 package ir;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.ListIterator;
 
@@ -32,12 +33,25 @@ public interface Index {
     /** This method is called on exit. */
     public void cleanup();
 
+    public HashMap<Integer, HashSet<String>> docTokens = new HashMap<Integer, HashSet<String>>();
+
     public static void showDocInfo(PostingsList pl) {
         ListIterator<PostingsEntry> it = pl.gIterator();
         System.out.println("*****************INFO*********************");
-        while (it.hasNext()) {
+        int i = 0;
+        while (it.hasNext() && i < 50) {
+            i++;
             PostingsEntry e = it.next();
             System.out.println(docNames.get(e.docID));
+        }
+        System.out.println("---------Relevance Feedback done!-------------");
+        // 3229
+        i = 0;
+        while (it.hasNext()) {
+            PostingsEntry e = it.next();
+            i++;
+            if (e.docID == 3229)
+                System.out.println(i);
         }
     }
 }

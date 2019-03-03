@@ -19,7 +19,6 @@ public class HITSRanker {
     final static int MAX_NUMBER_OF_STEPS = 1000;
 
     private final String DIR = "./links/";
-    private final String TITLEFILENAME = "davisTitles.txt";
     private final String LINKFILENAME = "linksDavis.txt";
     private final String CONVERTFILENAME = "docId-linkId.txt";
     /**
@@ -85,25 +84,6 @@ public class HITSRanker {
         readDocs();
     }
 
-    /* --------------------------------------------- */
-
-    /**
-     * A utility function that gets a file name given its path. For example, given
-     * the path "davisWiki/hello.f", the function will return "hello.f".
-     *
-     * @param path The file path
-     *
-     * @return The file name.
-     */
-    private String getFileName(String path) {
-        String result = "";
-        StringTokenizer tok = new StringTokenizer(path, "\\/");
-        while (tok.hasMoreTokens()) {
-            result = tok.nextToken();
-        }
-        return result;
-    }
-
     /**
      * Reads the files describing the graph of the given set of pages.
      *
@@ -113,7 +93,6 @@ public class HITSRanker {
      */
     void readDocs() {
         String linksFilename = DIR + LINKFILENAME;
-        String titlesFilename = DIR + TITLEFILENAME;
         String convertFilename = DIR + CONVERTFILENAME;
         try {
             System.err.println("Reading file... " + linksFilename);
@@ -293,7 +272,7 @@ public class HITSRanker {
      *
      * @return A hash map sorted by values
      */
-    private HashMap<Integer, Double> sortHashMapByValue(HashMap<Integer, Double> map) {
+    public HashMap<Integer, Double> sortHashMapByValue(HashMap<Integer, Double> map) {
         if (map == null) {
             return null;
         } else {

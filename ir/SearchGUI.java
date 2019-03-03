@@ -147,7 +147,7 @@ public class SearchGUI extends JFrame {
                 query = new Query(queryString);
                 // Take relevance feedback from the user into account (assignment 3)
                 // Check which documents the user has marked as relevant.
-                if (box != null) {
+                if (box != null && queryType == QueryType.RANKED_QUERY){
                     boolean[] relevant = new boolean[box.length];
                     for (int i = 0; i < box.length; i++) {
                         if (box[i] != null)

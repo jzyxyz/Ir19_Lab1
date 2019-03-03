@@ -31,11 +31,11 @@ public class Searcher {
     HITSRanker hitsRanker;
     final double lamda = 0.92;
 
-    /** Constructor */
-    public Searcher(Index index, KGramIndex kgIndex) {
-        this.index = index;
-        this.kgIndex = kgIndex;
-    }
+    // /** Constructor */
+    // public Searcher(Index index, KGramIndex kgIndex) {
+    // this.index = index;
+    // this.kgIndex = kgIndex;
+    // }
 
     public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank, HITSRanker hitsRanker) {
         this.index = index;
@@ -50,12 +50,11 @@ public class Searcher {
      * @return A postings list representing the result of the query.
      */
     public PostingsList search(Query query, QueryType queryType, RankingType rankingType) {
-        //
-        // REPLACE THE STATEMENT BELOW WITH YOUR CODE
-        //
         PostingsList result = new PostingsList();
         Set<Integer> result_set = new HashSet<Integer>();
         int n_terms = query.size();
+
+        kgIndex.convertQuery(query);
 
         ArrayList<Integer> set_sizes = new ArrayList<Integer>();
         if (n_terms == 0)
@@ -66,9 +65,13 @@ public class Searcher {
         for (int i = 0; i < n_terms; i++) {
             PostingsList pl_i = index.getPostings(query.getTermStringAt(i));
             pl_all.add(pl_i);
-            Set<Integer> pl_i_set = pl_i.getDocIdSet();
-            result_set.addAll(pl_i_set);
-            set_sizes.add(pl_i_set.size());
+            if (pl_i != null) {
+                Set<Integer> pl_i_set = pl_i.getDocIdSet();
+                result_set.addAll(pl_i_set);
+                set_sizes.add(pl_i_set.size());
+            } else {
+                set_sizes.add(0);
+            }
         }
         if (result_set.size() == 0) // term not indexed
             return result;
@@ -115,24 +118,19 @@ public class Searcher {
                 }
                 break;
             default:
-                int N = 17483;
+                int N = Index.docLengths.keySet().size();
                 Map<Integer, Double> scores = new HashMap<Integer, Double>();
                 for (int id : result_set) {
                     int docLen = Index.docLengths.get(id);
                     scores.put(id, 0d);
                     for (int i = 0; i < n_terms; i++) {
                         if (set_sizes.get(i) > 0) {
-                            String term = query.getTermStringAt(i);
+                            double weight = query.getTermWeightAt(i);
                             PostingsList pl_i = pl_all.get(i);
                             int tf = pl_i.numTermOccursIn(id);
                             int df = set_sizes.get(i);
                             double idf = Math.log(N / df);
-                            // 9114 coop
-                            if (id == 9114 || id == 9641) {
-                                System.out.println("tf for" + id + ": " + term + "   " + tf);
-                                System.out.println("df for" + id + ": " + term + "   " + idf);
-                            }
-                            double tf_idf = tf * idf;
+                            double tf_idf = tf * idf * weight;
                             scores.put(id, tf_idf + scores.get(id));
                         }
                     }
@@ -150,6 +148,7 @@ public class Searcher {
 
         }
         // Index.showDocInfo(result);
+        // kgIndex.logInfo();
         return result;
     }
 }

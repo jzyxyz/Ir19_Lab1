@@ -9,19 +9,22 @@ package ir;
 
 import java.io.*;
 import java.util.*;
-import java.nio.charset.StandardCharsets;
+import java.util.regex.*;
 
+import ir.Query.QueryTerm;
+
+import java.nio.charset.StandardCharsets;
 
 public class KGramIndex {
 
     /** Mapping from term ids to actual term strings */
-    HashMap<Integer,String> id2term = new HashMap<Integer,String>();
+    HashMap<Integer, String> id2term = new HashMap<Integer, String>();
 
     /** Mapping from term strings to term ids */
-    HashMap<String,Integer> term2id = new HashMap<String,Integer>();
+    HashMap<String, Integer> term2id = new HashMap<String, Integer>();
 
     /** Index from k-grams to list of term ids that contain the k-gram */
-    HashMap<String,List<KGramPostingsEntry>> index = new HashMap<String,List<KGramPostingsEntry>>();
+    HashMap<String, List<KGramPostingsEntry>> index = new HashMap<String, List<KGramPostingsEntry>>();
 
     /** The ID of the last processed term */
     int lastTermID = -1;
@@ -46,31 +49,53 @@ public class KGramIndex {
         return K;
     }
 
-
     /**
-     *  Get intersection of two postings lists
+     * Get intersection of two postings lists
      */
     private List<KGramPostingsEntry> intersect(List<KGramPostingsEntry> p1, List<KGramPostingsEntry> p2) {
-        // 
-        // YOUR CODE HERE
-        //
-        return null;
+        Set<Integer> resultSet = new HashSet<Integer>();
+        List<KGramPostingsEntry> result = new ArrayList<KGramPostingsEntry>();
+        int i = 0;
+        int j = 0;
+        while (i < p1.size() && j < p2.size()) {
+            KGramPostingsEntry e_self = p1.get(i);
+            KGramPostingsEntry e_other = p2.get(j);
+            if (e_self.tokenID == e_other.tokenID && !resultSet.contains(e_self.tokenID)) {
+                result.add(e_self);
+                resultSet.add(e_self.tokenID);
+                i++;
+                j++;
+            } else if (e_self.tokenID < e_other.tokenID)
+                i++;
+            else
+                j++;
+        }
+        return result;
     }
 
-
     /** Inserts all k-grams from a token into the index. */
-    public void insert( String token ) {
-        //
-        // YOUR CODE HERE
-        //
+    public void insert(String token) {
+        if (getIDByTerm(token) != null)
+            // if this token is already indexed
+            return;
+        int newid = generateTermID();
+        term2id.put(token, newid);
+        id2term.put(newid, token);
+        String extended = "^" + token + "$";
+        int k = getK();
+        for (int i = 0; i < extended.length() - k + 1; i++) {
+            String kgram = extended.substring(i, i + k);
+            if (index.get(kgram) == null) {
+                index.put(kgram, new ArrayList<KGramPostingsEntry>());
+            }
+            List<KGramPostingsEntry> list = index.get(kgram);
+            list.add(new KGramPostingsEntry(newid));
+        }
     }
 
     /** Get postings for the given k-gram */
     public List<KGramPostingsEntry> getPostings(String kgram) {
-        //
-        // YOUR CODE HERE
-        //
-        return null;
+        return index.get(kgram);
     }
 
     /** Get id of a term */
@@ -83,77 +108,62 @@ public class KGramIndex {
         return id2term.get(id);
     }
 
-    private static HashMap<String,String> decodeArgs( String[] args ) {
-        HashMap<String,String> decodedArgs = new HashMap<String,String>();
-        int i=0, j=0;
-        while ( i < args.length ) {
-            if ( "-p".equals( args[i] )) {
-                i++;
-                if ( i < args.length ) {
-                    decodedArgs.put("patterns_file", args[i++]);
-                }
-            } else if ( "-f".equals( args[i] )) {
-                i++;
-                if ( i < args.length ) {
-                    decodedArgs.put("file", args[i++]);
-                }
-            } else if ( "-k".equals( args[i] )) {
-                i++;
-                if ( i < args.length ) {
-                    decodedArgs.put("k", args[i++]);
-                }
-            } else if ( "-kg".equals( args[i] )) {
-                i++;
-                if ( i < args.length ) {
-                    decodedArgs.put("kgram", args[i++]);
-                }
-            } else {
-                System.err.println( "Unknown option: " + args[i] );
-                break;
+    public void logInfo() {
+        String[] test = { "^x" };
+        for (String t : test) {
+            List<KGramPostingsEntry> list = getPostings(t);
+            StringBuilder sb = new StringBuilder("");
+            Iterator<KGramPostingsEntry> it = list.iterator();
+            while (it.hasNext()) {
+                sb.append(getTermByID(it.next().tokenID)).append(": ");
             }
+            System.out.println("size of kgram " + t + " is " + list.size());
+            System.out.println(sb.toString());
         }
-        return decodedArgs;
+
     }
 
-    public static void main(String[] arguments) throws FileNotFoundException, IOException {
-        HashMap<String,String> args = decodeArgs(arguments);
+    public List<String> parseWildcard(String wildcard) {
+        List<String> parsed = new ArrayList<String>();
+        List<List<KGramPostingsEntry>> pl_all = new ArrayList<List<KGramPostingsEntry>>();
 
-        int k = Integer.parseInt(args.getOrDefault("k", "3"));
-        KGramIndex kgIndex = new KGramIndex(k);
+        StringBuilder sb = new StringBuilder("");
+        String extended = sb.append("^").append(wildcard).append("$").toString();
+        Pattern p = Pattern.compile(extendedreplace("*", ".*"));
 
-        File f = new File(args.get("file"));
-        Reader reader = new InputStreamReader( new FileInputStream(f), StandardCharsets.UTF_8 );
-        Tokenizer tok = new Tokenizer( reader, true, false, true, args.get("patterns_file") );
-        while ( tok.hasMoreTokens() ) {
-            String token = tok.nextToken();
-            kgIndex.insert(token);
-        }
-
-        String[] kgrams = args.get("kgram").split(" ");
-        List<KGramPostingsEntry> postings = null;
-        for (String kgram : kgrams) {
-            if (kgram.length() != k) {
-                System.err.println("Cannot search k-gram index: " + kgram.length() + "-gram provided instead of " + k + "-gram");
-                System.exit(1);
-            }
-
-            if (postings == null) {
-                postings = kgIndex.getPostings(kgram);
-            } else {
-                postings = kgIndex.intersect(postings, kgIndex.getPostings(kgram));
+        int k = getK();
+        for (int i = 0; i < extended.length() - k + 1; i++) {
+            String kgram = extended.substring(i, i + k);
+            if (index.get(kgram) != null) {
+                pl_all.add(index.get(kgram));
             }
         }
-        if (postings == null) {
-            System.err.println("Found 0 posting(s)");
-        } else {
-            int resNum = postings.size();
-            System.err.println("Found " + resNum + " posting(s)");
-            if (resNum > 10) {
-                System.err.println("The first 10 of them are:");
-                resNum = 10;
+
+        List<KGramPostingsEntry> intersection = pl_all.get(0);
+
+        for (int i = 0; i < pl_all.size() - 1; i++) {
+            intersection = intersect(intersection, pl_all.get(i + 1));
+        }
+
+        for (KGramPostingsEntry e : result) {
+            String term = getTermByID(e.tokenID);
+            Matcher m = p.matcher(term);
+            if (m.matches()) {
+                System.out.println(term);
+                parsed.add(term);
             }
-            for (int i = 0; i < resNum; i++) {
-                System.err.println(kgIndex.getTermByID(postings.get(i).tokenID));
+        }
+        return parsed;
+    }
+
+    public void convertIntersectQuery(Query original) {
+        // Query converted = original.copy();
+
+        for (QueryTerm qt : original.queryterm) {
+            // if it is a wildcard query
+            if (qt.term.indexOf("*") != -1) {
+                String wildcard = qt.term;
+
             }
         }
     }
