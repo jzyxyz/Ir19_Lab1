@@ -123,13 +123,18 @@ public class KGramIndex {
 
     }
 
-    public List<String> parseWildcard(String wildcard) {
-        List<String> parsed = new ArrayList<String>();
+    public ArrayList<String> parseToken(String _token) {
+        ArrayList<String> parsed = new ArrayList<String>();
+        // If it is not a wildcard
+        if (_token.indexOf("*") == -1) {
+            parsed.add(_token);
+            return parsed;
+        }
         List<List<KGramPostingsEntry>> pl_all = new ArrayList<List<KGramPostingsEntry>>();
 
         StringBuilder sb = new StringBuilder("");
-        String extended = sb.append("^").append(wildcard).append("$").toString();
-        Pattern p = Pattern.compile(extendedreplace("*", ".*"));
+        String extended = sb.append("^").append(_token).append("$").toString();
+        Pattern p = Pattern.compile(extended.replace("*", ".*"));
 
         int k = getK();
         for (int i = 0; i < extended.length() - k + 1; i++) {
@@ -145,7 +150,7 @@ public class KGramIndex {
             intersection = intersect(intersection, pl_all.get(i + 1));
         }
 
-        for (KGramPostingsEntry e : result) {
+        for (KGramPostingsEntry e : intersection) {
             String term = getTermByID(e.tokenID);
             Matcher m = p.matcher(term);
             if (m.matches()) {
@@ -156,15 +161,12 @@ public class KGramIndex {
         return parsed;
     }
 
-    public void convertIntersectQuery(Query original) {
-        // Query converted = original.copy();
-
-        for (QueryTerm qt : original.queryterm) {
-            // if it is a wildcard query
-            if (qt.term.indexOf("*") != -1) {
-                String wildcard = qt.term;
-
-            }
+    public HashMap<Integer, ArrayList<String>> convertIntersectQuery(Query original) {
+        HashMap<Integer, ArrayList<String>> converted = new HashMap<Integer, ArrayList<String>>();
+        for (int n = 0; n < original.size(); n++) {
+            converted.put(n, parseToken(original.getTermStringAt(n)));
         }
+        return converted;
     }
+
 }

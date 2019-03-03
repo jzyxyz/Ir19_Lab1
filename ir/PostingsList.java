@@ -9,8 +9,11 @@ package ir;
 
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.ListIterator;
+import java.util.Arrays;
+import java.util.List;
 
 public class PostingsList {
 
@@ -20,6 +23,19 @@ public class PostingsList {
     /** Number of postings in this list. */
     public int size() {
         return list.size();
+    }
+
+    public PostingsList(Set<Integer> set) {
+
+        List<Integer> list = new ArrayList<Integer>(set);
+        Collections.sort(list);
+        for (Integer id : list) {
+            PostingsEntry e = new PostingsEntry(id, 0);
+            addEntry(e);
+        }
+    }
+
+    public PostingsList() {
     }
 
     public ArrayList<PostingsEntry> getlist() {
@@ -50,9 +66,6 @@ public class PostingsList {
         return list.get(i);
     }
 
-    //
-    // YOUR CODE HERE
-    //
     public void addEntry(PostingsEntry entry) {
         list.add(entry);
     }
@@ -77,19 +90,19 @@ public class PostingsList {
         return flag;
     }
 
-    public boolean contains(PostingsEntry e) {
-        boolean flag = false;
-        if (list.size() == 0)
-            return flag;
-        ListIterator<PostingsEntry> it = gIterator();
-        while (it.hasNext()) {
-            if (e.docID == it.next().docID) {
-                flag = true;
-                break;
-            }
-        }
-        return flag;
-    }
+    // public boolean contains(PostingsEntry e) {
+    // boolean flag = false;
+    // if (list.size() == 0)
+    // return flag;
+    // ListIterator<PostingsEntry> it = gIterator();
+    // while (it.hasNext()) {
+    // if (e.docID == it.next().docID) {
+    // flag = true;
+    // break;
+    // }
+    // }
+    // return flag;
+    // }
 
     public PostingsList intersectWith(PostingsList other) {
         Set<Integer> resultSet = new HashSet<Integer>();
