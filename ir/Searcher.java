@@ -87,12 +87,15 @@ public class Searcher {
         int n_terms = query.size();
 
         if (n_terms == 0)
-            return result;
+            return null;
 
         HashMap<Integer, ArrayList<String>> converted = kgIndex.toLinkedQuery(query);
         HashMap<Integer, ArrayList<PostingsList>> pl_all = mapToPostingsList(converted);
         System.out.println("query hash map size: " + converted.size());
         System.out.println("mapped pl hash map size: " + pl_all.size());
+
+        if (pl_all.size() < 1)
+            return null;
 
         switch (queryType) {
         case INTERSECTION_QUERY:
@@ -120,10 +123,8 @@ public class Searcher {
             break;
 
         case RANKED_QUERY:
-
             reduceToUnion(pl_all, true);
             Set<Integer> result_set = flatMapToSet(pl_all);
-
             switch (rankingType) {
             case HITS:
                 System.out.println("invoke HITS ranker");
