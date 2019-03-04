@@ -7,14 +7,7 @@
 
 package ir;
 
-import java.util.ArrayList;
-import java.util.StringTokenizer;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Collections;
+import java.util.*;
 import java.lang.Math.*;
 
 /**
@@ -29,19 +22,59 @@ public class Searcher {
     KGramIndex kgIndex;
     PageRank pageRank;
     HITSRanker hitsRanker;
+    TFIDF tfidf;
     final double lamda = 0.92;
 
-    // /** Constructor */
-    // public Searcher(Index index, KGramIndex kgIndex) {
-    // this.index = index;
-    // this.kgIndex = kgIndex;
-    // }
-
-    public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank, HITSRanker hitsRanker) {
+    public Searcher(Index index, KGramIndex kgIndex, PageRank pageRank, HITSRanker hitsRanker, TFIDF tfidf) {
         this.index = index;
         this.kgIndex = kgIndex;
         this.pageRank = pageRank;
         this.hitsRanker = hitsRanker;
+        this.tfidf = tfidf;
+    }
+
+    public HashMap<Integer, ArrayList<PostingsList>> mapToPostingsList(HashMap<Integer, ArrayList<String>> converted) {
+        HashMap<Integer, ArrayList<PostingsList>> pl_all = new HashMap<Integer, ArrayList<PostingsList>>();
+        for (Integer idx : converted.keySet()) {
+            ArrayList<String> options = converted.get(idx);
+            ArrayList<PostingsList> pl_cur = new ArrayList<PostingsList>();
+            for (String opt : options) {
+                // System.out.print(opt + ": ");
+                if (index.getPostings(opt) != null)
+                    pl_cur.add(index.getPostings(opt));
+            }
+            System.out.println("for token at " + idx + " found " + options.size() + " options");
+            if (pl_cur.size() > 0)
+                pl_all.put(idx, pl_cur);
+        }
+        return pl_all;
+    }
+
+    public void reduceToUnion(HashMap<Integer, ArrayList<PostingsList>> pl_all, boolean nodup) {
+        for (Integer idx : pl_all.keySet()) {
+            ArrayList<PostingsList> arr = pl_all.get(idx);
+            PostingsList unioned = new PostingsList();
+            for (PostingsList pl : arr) {
+                unioned.concat(pl);
+            }
+            unioned.sortByDocIdAndOffset();
+            if (nodup == true) {
+                unioned = unioned.intersectWith(unioned); // remove duplicate docIDs
+            }
+            arr.clear();
+            arr.add(unioned);
+            System.out.println("Unioned PostingsList for " + idx + " : " + unioned.size());
+        }
+    }
+
+    public Set<Integer> flatMapToSet(HashMap<Integer, ArrayList<PostingsList>> pl_all) {
+        Set<Integer> result_set = new HashSet<Integer>();
+        for (Integer idx : pl_all.keySet()) {
+            Set<Integer> pl_i_set = pl_all.get(idx).get(0).getDocIdSet();
+            result_set.addAll(pl_i_set);
+        }
+        System.out.println("total result set size: " + result_set.size());
+        return result_set;
     }
 
     /**
@@ -51,129 +84,69 @@ public class Searcher {
      */
     public PostingsList search(Query query, QueryType queryType, RankingType rankingType) {
         PostingsList result = new PostingsList();
-        Set<Integer> result_set = new HashSet<Integer>();
         int n_terms = query.size();
 
         if (n_terms == 0)
             return result;
-        // ArrayList<Integer> set_sizes = new ArrayList<Integer>();
-        // // map the terms to a new PostingsList array
-        // for (int i = 0; i < n_terms; i++) {
-        // PostingsList pl_i = index.getPostings(query.getTermStringAt(i));
-        // pl_all.add(pl_i);
-        // if (pl_i != null) {
-        // Set<Integer> pl_i_set = pl_i.getDocIdSet();
-        // result_set.addAll(pl_i_set);
-        // set_sizes.add(pl_i_set.size());
-        // } else {
-        // set_sizes.add(0);
-        // }
-        // }
-        // if (result_set.size() == 0) // term not indexed
-        // return result;
+
+        HashMap<Integer, ArrayList<String>> converted = kgIndex.toLinkedQuery(query);
+        HashMap<Integer, ArrayList<PostingsList>> pl_all = mapToPostingsList(converted);
+        System.out.println("query hash map size: " + converted.size());
+        System.out.println("mapped pl hash map size: " + pl_all.size());
 
         switch (queryType) {
         case INTERSECTION_QUERY:
 
-            HashMap<Integer, ArrayList<String>> converted = kgIndex.convertIntersectQuery(query);
-            HashMap<Integer, ArrayList<PostingsList>> pl_all = new HashMap<Integer, ArrayList<PostingsList>>();
-
-            for (Integer idx : converted.keySet()) {
-                ArrayList<String> options = converted.get(idx);
-                ArrayList<PostingsList> pl_cur = new ArrayList<PostingsList>();
-                for (String opt : options) {
-                    // System.out.print(opt + ": ");
-                    if (index.getPostings(opt) != null)
-                        pl_cur.add(index.getPostings(opt));
-                }
-                System.out.println("---------------" + idx + "------" + options.size());
-
-                if (pl_cur.size() > 0)
-                    pl_all.put(idx, pl_cur);
-            }
-
-            System.out.println("query hash map size: " + converted.size());
-            System.out.println("mapped pl hash map size: " + pl_all.size());
-
-            for (Integer idx : pl_all.keySet()) {
-                ArrayList<PostingsList> arr = pl_all.get(idx);
-                Set<Integer> unionSet = new HashSet<Integer>();
-                for (PostingsList pl : arr) {
-                    unionSet.addAll(pl.getDocIdSet());
-                }
-                arr.clear();
-                PostingsList unioned = new PostingsList(unionSet);
-                arr.add(unioned);
-                System.out.println("Unioned----------" + idx + "------" + unioned.size());
-            }
-
+            reduceToUnion(pl_all, true);
             result = pl_all.get(0).get(0);
-            result = result.intersectWith(result);
             pl_all.remove(0);
             for (Integer idx : pl_all.keySet()) {
                 result = result.intersectWith(pl_all.get(idx).get(0));
             }
-
             break;
 
         case PHRASE_QUERY:
-            // result = pl_all.get(0);
-            // pl_all.remove(0);
-            // if (n_terms == 1)
-            // return result.intersectWith(result);
 
-            // for (PostingsList pl : pl_all) {
-            // if (pl != null)
-            // result = result.phraseWith(pl);
-            // }
-
+            reduceToUnion(pl_all, false);
+            result = pl_all.get(0).get(0);
+            if (n_terms == 1) {
+                result = result.intersectWith(result);
+            } else {
+                pl_all.remove(0);
+                for (Integer idx : pl_all.keySet()) {
+                    result = result.phraseWith(pl_all.get(idx).get(0));
+                }
+            }
             break;
+
         case RANKED_QUERY:
 
-            // result = new PostingsList();
+            reduceToUnion(pl_all, true);
+            Set<Integer> result_set = flatMapToSet(pl_all);
 
-            // switch (rankingType) {
-            // case HITS:
-            // System.out.println("invoke HITS ranker");
-            // result = hitsRanker.rank(result_set);
-            // break;
-            // case PAGERANK:
-            // for (int id : result_set) {
-            // double score = pageRank.getPRScore(id);
-            // result.addEntry(new PostingsEntry(id, score));
-            // }
-            // break;
-            // default:
-            // int N = Index.docLengths.keySet().size();
-            // Map<Integer, Double> scores = new HashMap<Integer, Double>();
-            // for (int id : result_set) {
-            // int docLen = Index.docLengths.get(id);
-            // scores.put(id, 0d);
-            // for (int i = 0; i < n_terms; i++) {
-            // if (set_sizes.get(i) > 0) {
-            // double weight = query.getTermWeightAt(i);
-            // PostingsList pl_i = pl_all.get(i);
-            // int tf = pl_i.numTermOccursIn(id);
-            // int df = set_sizes.get(i);
-            // double idf = Math.log(N / df);
-            // double tf_idf = tf * idf * weight;
-            // scores.put(id, tf_idf + scores.get(id));
-            // }
-            // }
-            // scores.put(id, scores.get(id) / docLen);
-            // // If it's combination
-            // if (rankingType == RankingType.COMBINATION) {
-            // double newScore = (1 - lamda) * scores.get(id) + lamda *
-            // pageRank.getPRScore(id);
-            // scores.put(id, newScore);
-            // }
-            // result.addEntry(new PostingsEntry(id, scores.get(id)));
-            // }
-            break;
-        // }
-        // Collections.sort(result.getlist(), (PostingsEntry e1, PostingsEntry e2) ->
-        // e1.compareTo(e2));
+            switch (rankingType) {
+            case HITS:
+                System.out.println("invoke HITS ranker");
+                result = hitsRanker.rank(result_set);
+                break;
 
+            case PAGERANK:
+                result = pageRank.rank(result_set);
+                break;
+
+            case TF_IDF:
+                result = tfidf.rank(result_set, converted);
+                break;
+
+            default:
+                PostingsList tf = tfidf.rank(result_set, converted);
+                PostingsList pr = pageRank.rank(result_set);
+                for (int i = 0; i < tf.size(); i++) {
+                    double score = (1 - lamda) * tf.get(i).score + lamda * pr.get(i).score;
+                    result.addEntry(new PostingsEntry(tf.get(i).docID, score));
+                }
+            }
+            result.sortByScore();
         }
         // Index.showDocInfo(result);
         // kgIndex.logInfo();

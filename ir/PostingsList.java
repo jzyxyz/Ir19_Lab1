@@ -7,13 +7,7 @@
 
 package ir;
 
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.ListIterator;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class PostingsList {
 
@@ -25,21 +19,24 @@ public class PostingsList {
         return list.size();
     }
 
-    public PostingsList(Set<Integer> set) {
-
-        List<Integer> list = new ArrayList<Integer>(set);
-        Collections.sort(list);
-        for (Integer id : list) {
-            PostingsEntry e = new PostingsEntry(id, 0);
-            addEntry(e);
-        }
-    }
-
     public PostingsList() {
     }
 
     public ArrayList<PostingsEntry> getlist() {
         return list;
+    }
+
+    public void concat(PostingsList other) {
+        ArrayList<PostingsEntry> otherList = other.getlist();
+        list.addAll(otherList);
+    }
+
+    public void sortByScore() {
+        Collections.sort(list, PostingsEntry.byScore);
+    }
+
+    public void sortByDocIdAndOffset() {
+        Collections.sort(list, PostingsEntry.byDocIdAndOffset);
     }
 
     public int numTermOccursIn(int _docID) {
@@ -73,36 +70,6 @@ public class PostingsList {
     public ListIterator<PostingsEntry> gIterator() {
         return list.listIterator();
     }
-
-    public boolean hasEntryWith(int _docID) {
-        boolean flag = false;
-        if (list.size() == 0)
-            return flag;
-
-        ListIterator<PostingsEntry> it = gIterator();
-        while (it.hasNext()) {
-            PostingsEntry e = it.next();
-            if (e.docID == _docID) {
-                flag = true;
-                break;
-            }
-        }
-        return flag;
-    }
-
-    // public boolean contains(PostingsEntry e) {
-    // boolean flag = false;
-    // if (list.size() == 0)
-    // return flag;
-    // ListIterator<PostingsEntry> it = gIterator();
-    // while (it.hasNext()) {
-    // if (e.docID == it.next().docID) {
-    // flag = true;
-    // break;
-    // }
-    // }
-    // return flag;
-    // }
 
     public PostingsList intersectWith(PostingsList other) {
         Set<Integer> resultSet = new HashSet<Integer>();

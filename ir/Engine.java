@@ -63,7 +63,7 @@ public class Engine {
         decodeArgs(args);
         indexer = new Indexer(index, kgIndex, patterns_file);
         // searcher = new Searcher(index, kgIndex);
-        searcher = new Searcher(index, kgIndex, pageRank, hitsRanker);
+        searcher = new Searcher(index, kgIndex, pageRank, hitsRanker, tfidf);
         gui = new SearchGUI(this);
         gui.init();
         /*

@@ -154,14 +154,14 @@ public class KGramIndex {
             String term = getTermByID(e.tokenID);
             Matcher m = p.matcher(term);
             if (m.matches()) {
-                System.out.println(term);
+                // System.out.println(term);
                 parsed.add(term);
             }
         }
         return parsed;
     }
 
-    public HashMap<Integer, ArrayList<String>> convertIntersectQuery(Query original) {
+    public HashMap<Integer, ArrayList<String>> toLinkedQuery(Query original) {
         HashMap<Integer, ArrayList<String>> converted = new HashMap<Integer, ArrayList<String>>();
         for (int n = 0; n < original.size(); n++) {
             converted.put(n, parseToken(original.getTermStringAt(n)));
