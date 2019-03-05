@@ -8,8 +8,9 @@
 package ir;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.stream.*;
 import java.lang.Math;
+import java.util.AbstractMap.SimpleEntry;
 
 public class SpellChecker {
     /** The regular inverted index to be used by the spell checker */
@@ -38,11 +39,11 @@ public class SpellChecker {
         public int compareTo(Object other) {
             if (this.score == ((KGramStat) other).score)
                 return 0;
-            return this.score < ((KGramStat) other).score ? -1 : 1;
+            return this.score < ((KGramStat) other).score ? 1 : -1;
         }
 
         public String toString() {
-            return token + ";" + score;
+            return token + " : " + String.format("%.5g", score);
         }
     }
 
@@ -50,13 +51,13 @@ public class SpellChecker {
      * The threshold for Jaccard coefficient; a candidate spelling correction should
      * pass the threshold in order to be accepted
      */
-    private static final double JACCARD_THRESHOLD = 0.75;
+    private static final double JACCARD_THRESHOLD = 0.6;
 
     /**
      * The threshold for edit distance for a candidate spelling correction to be
      * accepted.
      */
-    private static final int MAX_EDIT_DISTANCE = 4;
+    private static final int MAX_EDIT_DISTANCE = 5;
 
     public SpellChecker(Index index, KGramIndex kgIndex) {
         this.index = index;
@@ -133,13 +134,20 @@ public class SpellChecker {
 
     }
 
-    /**
-     * Checks spelling of all terms in <code>query</code> and returns up to
-     * <code>limit</code> ranked suggestions for spelling correction.
-     */
-    public String[] check(Query query, int limit) {
+    private Map.Entry<String, List<KGramStat>> correct(Map.Entry<String, Integer> e) {
+        List<KGramStat> list = new ArrayList<KGramStat>();
+        String token = e.getKey();
+        if (e.getValue() == 0) {
+            // the 6 most likely, hard coded here
+            list = findAltsFor(token, 6);
+        } else {
+            list.add(new KGramStat(token, 1.0));
+        }
+        Map.Entry<String, List<KGramStat>> mapped = new AbstractMap.SimpleEntry<String, List<KGramStat>>(token, list);
+        return mapped;
+    }
 
-        String misspelled = query.getTermStringAt(0);
+    public List<KGramStat> findAltsFor(String misspelled, int firstK) {
         int szQ = misspelled.length() + 3 - kgIndex.getK();
         // misspelled=kgIndex.extend(misspelled);
         ArrayList<String> q_kgrams = kgIndex.getKGram(misspelled);
@@ -162,18 +170,41 @@ public class SpellChecker {
         Map<String, Integer> edit_passed = edit_dis.entrySet().stream().filter(e -> e.getValue() < MAX_EDIT_DISTANCE)
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
-        Set<String> set = edit_passed.keySet();
+        Set<String> keys = edit_passed.keySet();
 
-        // for (String s : set) {
-        // System.out.println(s + " : " + String.format("%.5g", jc_passed.get(s)) + " :
-        // " + edit_passed.get(s));
-        // }
-
-        Map<String, Double> combined = set.stream()
+        Map<String, Double> combined = keys.stream()
                 .collect(Collectors.toMap(k -> k, k -> jc_passed.get(k) / edit_passed.get(k)));
 
-        set = sortHashMapByValue(combined).keySet();
-        String[] arr = set.toArray(new String[set.size()]);
+        List<KGramStat> list = sortHashMapByValue(combined).entrySet().stream()
+                .map(e -> new KGramStat(e.getKey(), e.getValue())).collect(Collectors.toList());
+
+        firstK = Math.min(firstK, list.size());
+
+        List<KGramStat> cut = list.stream().limit(firstK).collect(Collectors.toList());
+        return cut;
+    }
+
+    /**
+     * Checks spelling of all terms in <code>query</code> and returns up to
+     * <code>limit</code> ranked suggestions for spelling correction.
+     */
+    public String[] check(Query query, int limit) {
+
+        Map<String, Integer> hits = query.queryterm.stream().collect(Collectors.toMap(qt -> qt.term,
+                qt -> index.getPostings(qt.term) == null ? 0 : index.getPostings(qt.term).size()));
+
+        Map<String, List<KGramStat>> qCorrections = hits.entrySet().stream().map(e -> correct(e))
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+
+        // qCorrections.values().forEach(l -> l.forEach(s ->
+        // System.out.println(s.toString())));
+
+        List<KGramStat> merge = mergeCorrections(qCorrections);
+        merge.stream().map(kgs -> kgs.toString()).forEach(System.out::println);
+
+        List<String> list = merge.stream().map(kgs -> kgs.token).collect(Collectors.toList());
+
+        String[] arr = list.toArray(new String[list.size()]);
         int l = limit > arr.length ? arr.length : limit;
         return Arrays.copyOfRange(arr, 0, l);
     }
@@ -183,11 +214,51 @@ public class SpellChecker {
      * in <code>qCorrections</code> into one final merging of query phrases. Returns
      * up to <code>limit</code> corrected phrases.
      */
-    private List<KGramStat> mergeCorrections(List<List<KGramStat>> qCorrections, int limit) {
-        //
-        // YOUR CODE HERE
-        //
-        return null;
+    private List<KGramStat> mergeCorrections(Map<String, List<KGramStat>> qCorrections) {
+        List<List<KGramStat>> flat = qCorrections.values().stream().collect(Collectors.toList());
+        Optional<List<KGramStat>> merge = flat.stream().reduce((accu, cur) -> mergeList(accu, cur));
+        List<KGramStat> list = new ArrayList<KGramStat>();
+        if (merge.isPresent()) {
+            list.addAll(merge.get());
+        }
+        return list;
+    }
+
+    private List<KGramStat> mergeList(List<KGramStat> l1, List<KGramStat> l2) {
+        List<KGramStat> merge = l1.stream().map(kgs -> mergeStat(kgs, l2)).flatMap(l -> l.stream())
+                .collect(Collectors.toList());
+        Collections.sort(merge);
+        int use = Math.min(merge.size(), 4);
+        return merge.stream().limit(use).collect(Collectors.toList());
+    }
+
+    private KGramStat mergeStat(KGramStat s1, KGramStat s2, PostingsList last) {
+        String concat = s1.token + " " + s2.token;
+        double score;
+        if (last != null) {
+            PostingsList pl = last.intersectWith(index.getPostings(s2.token));
+            int hits = pl == null ? 1 : pl.size();
+            score = (s1.score + s2.score) * Math.log(hits);
+        } else {
+            score = s1.score + s2.score;
+        }
+        return new KGramStat(concat, score);
+    }
+
+    private List<KGramStat> mergeStat(KGramStat kgs, List<KGramStat> l) {
+        String[] arr = kgs.token.trim().split("\\s+");
+        List<PostingsList> plist = Stream.of(arr).map(s -> index.getPostings(s)).collect(Collectors.toList());
+        PostingsList result = plist.get(0);
+
+        if (arr.length > 1) {
+            plist.remove(0);
+            for (PostingsList pl : plist) {
+                result = result.intersectWith(pl);
+            }
+        }
+        PostingsList last = result;
+        // System.out.println("the size of last pl " + last.size());
+        return l.stream().map(_kgs -> mergeStat(kgs, _kgs, last)).collect(Collectors.toList());
     }
 
     /**

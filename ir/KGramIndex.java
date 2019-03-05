@@ -86,12 +86,19 @@ public class KGramIndex {
         term2id.put(token, newid);
         id2term.put(newid, token);
         id2kgnum.put(newid, token.length() + 3 - getK());
+        // for a long word, the same kgram may appear several times
+        Set<String> unique_kgs = new HashSet<String>();
         for (String kgram : getKGram(extend(token))) {
             if (index.get(kgram) == null) {
                 index.put(kgram, new ArrayList<KGramPostingsEntry>());
             }
-            List<KGramPostingsEntry> list = index.get(kgram);
-            list.add(new KGramPostingsEntry(newid));
+            // check if already put the tokenid to the list
+            // if already, do not put it inside again
+            if (!unique_kgs.contains(kgram)) {
+                unique_kgs.add(kgram);
+                List<KGramPostingsEntry> list = index.get(kgram);
+                list.add(new KGramPostingsEntry(newid));
+            }
         }
 
     }

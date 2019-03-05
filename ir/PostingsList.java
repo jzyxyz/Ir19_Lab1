@@ -89,6 +89,8 @@ public class PostingsList {
             else
                 j++;
         }
+        if (resultSet.size() == 0)
+            return null;
         return result;
     }
 

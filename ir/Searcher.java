@@ -9,6 +9,7 @@ package ir;
 
 import java.util.*;
 import java.lang.Math.*;
+import java.util.stream.Collectors;
 
 /**
  * Searches an index for results of a query.
@@ -43,7 +44,8 @@ public class Searcher {
                 if (index.getPostings(opt) != null)
                     pl_cur.add(index.getPostings(opt));
             }
-            System.out.println("for token at " + idx + " found " + options.size() + " options");
+            // System.out.println("for token at " + idx + " found " + options.size() + "
+            // options");
             if (pl_cur.size() > 0)
                 pl_all.put(idx, pl_cur);
         }
@@ -63,7 +65,8 @@ public class Searcher {
             }
             arr.clear();
             arr.add(unioned);
-            System.out.println("Unioned PostingsList for " + idx + " : " + unioned.size());
+            // System.out.println("Unioned PostingsList for " + idx + " : " +
+            // unioned.size());
         }
     }
 
@@ -73,7 +76,7 @@ public class Searcher {
             Set<Integer> pl_i_set = pl_all.get(idx).get(0).getDocIdSet();
             result_set.addAll(pl_i_set);
         }
-        System.out.println("total result set size: " + result_set.size());
+        // System.out.println("total result set size: " + result_set.size());
         return result_set;
     }
 
@@ -91,11 +94,15 @@ public class Searcher {
 
         HashMap<Integer, ArrayList<String>> converted = kgIndex.toLinkedQuery(query);
         HashMap<Integer, ArrayList<PostingsList>> pl_all = mapToPostingsList(converted);
-        System.out.println("query hash map size: " + converted.size());
-        System.out.println("mapped pl hash map size: " + pl_all.size());
+        // System.out.println("query hash map size: " + converted.size());
+        // System.out.println("mapped pl hash map size: " + pl_all.size());
 
-        if (pl_all.size() < 1)
-            return null;
+        // Map<String, Integer> hits =
+        // query.queryterm.stream().collect(Collectors.toMap(qt -> qt.term,
+        // qt -> index.getPostings(qt.term) == null ? 0 :
+        // index.getPostings(qt.term).size()));
+        // if (hits.values().contains(0))
+        // return null;
 
         switch (queryType) {
         case INTERSECTION_QUERY:
